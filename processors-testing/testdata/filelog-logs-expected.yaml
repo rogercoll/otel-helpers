@@ -1,0 +1,120 @@
+resourceLogs:
+  - resource:
+      attributes:
+        - key: k8s.pod.uid
+          value:
+            stringValue: 49cc7c1fd3702c40b2686ea7486091d6
+        - key: k8s.container.name
+          value:
+            stringValue: kube-controller
+        - key: k8s.namespace.name
+          value:
+            stringValue: kube-system
+        - key: k8s.pod.name
+          value:
+            stringValue: kube-controller-kind-control-plane
+    scopeLogs:
+      - logRecords:
+          - attributes:
+              - key: log.file.name
+                value:
+                  stringValue: 0.log
+              - key: log.file.path
+                value:
+                  stringValue: /var/log/pods/kube-system_kube-controller-kind-control-plane_49cc7c1fd3702c40b2686ea7486091d6/kube-controller/0.log
+              - key: log.iostream
+                value:
+                  stringValue: stdout
+              - key: logtag
+                value:
+                  stringValue: F
+              - key: source.address
+                value:
+                  stringValue: 1.2.3.4
+              - key: data_stream.dataset
+                value:
+                  stringValue: nginx_ingress_controller.access
+              - key: event.name
+                value:
+                  stringValue: nginx_ingress_controller.access
+              - key: event.timestamp
+                value:
+                  stringValue: '"2024-06-25T15:16:56Z"'
+            body:
+              kvlistValue:
+                values:
+                  - key: http.response.body.size
+                    value:
+                      intValue: "47"
+                  - key: http.response.status_code
+                    value:
+                      intValue: "400"
+                  - key: upstream.address
+                    value:
+                      stringValue: 10.80.0.67:8080
+                  - key: http.request.id
+                    value:
+                      stringValue: 797ee0551e7c23b541757e13b5b6b4e6
+                  - key: upstream.response.size
+                    value:
+                      arrayValue:
+                        values:
+                          - stringValue: "47"
+                  - key: upstream.response.time
+                    value:
+                      arrayValue:
+                        values:
+                          - stringValue: "12.065"
+                  - key: http.request.referrer
+                    value:
+                      stringValue: http://37.18.133.47/
+                  - key: http.request.method
+                    value:
+                      stringValue: POST
+                  - key: upstream.response.status_code
+                    value:
+                      arrayValue:
+                        values:
+                          - stringValue: "200"
+                  - key: upstream.name
+                    value:
+                      stringValue: default-my-otel-demo-frontendproxy-8080
+                  - key: http.request.time
+                    value:
+                      doubleValue: 12.065
+                  - key: source.address
+                    value:
+                      stringValue: 1.2.3.4
+                  - key: user_agent.original
+                    value:
+                      stringValue: Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0
+                  - key: http.request.size
+                    value:
+                      intValue: "522"
+                  - key: url.extension
+                    value:
+                      stringValue: Service/EventStream
+                  - key: url.original
+                    value:
+                      stringValue: /flagservice/flagd.evaluation.v1.Service/EventStream
+                  - key: http.version
+                    value:
+                      stringValue: "1.1"
+                  - key: url.domain
+                    value:
+                      stringValue: ""
+                  - key: url.scheme
+                    value:
+                      stringValue: ""
+                  - key: url.path
+                    value:
+                      stringValue: /flagservice/flagd.evaluation.v1.Service/EventStream
+                  - key: user_agent.name
+                    value:
+                      stringValue: Firefox
+                  - key: user_agent.version
+                    value:
+                      stringValue: "127.0"
+            spanId: ""
+            traceId: ""
+        scope: {}
