@@ -1,14 +1,33 @@
-package nginxotel
+extensions:
+  file_storage:
 
-import (
-	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/pipeline"
-)
+receivers:
+  filelog:
+    include_file_path: true
+    include: [/var/log/pods/*nginx-ingress-nginx-controller*/controller/*.log]
+    operators:
+      - id: container-parser
+        type: container
 
-var IngressNginxProcessors = []ProcessorInstance{
-	{
-		processorType: component.MustNewIDWithName("transform", "parse_nginx_ingress_access/log"),
-		config: `
+processors:
+  transform/parse_nginx_ingress_error/log:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        conditions:
+            # ^[EWF]: Matches logs starting with E (Error), W (Warning), or F (Fatal).
+            # \d{4}: Matches the four digits after the log level (representing the date, like 1215 for December 15).
+            # .+: Matches the rest of the log line (the message part, without needing specific timestamp or file format).
+          - IsMatch(body, "^[EWF]\\d{4} .+")
+        statements:
+          - set(body, ExtractGrokPatterns(body, "%{LOG_LEVEL:log.level}%{MONTHNUM}%{MONTHDAY} %{HOUR}:%{MINUTE}:%{SECOND}\\.%{MICROS}%{SPACE}%{NUMBER:thread_id} %{SOURCE_FILE:source.file.name}:%{NUMBER:source.line_number}\\] %{GREEDYMULTILINE:message}", true, ["LOG_LEVEL=[A-Z]", "MONTHNUM=(0[1-9]|1[0-2])", "MONTHDAY=(0[1-9]|[12][0-9]|3[01])", "HOUR=([01][0-9]|2[0-3])", "MINUTE=[0-5][0-9]", "SECOND=[0-5][0-9]", "MICROS=[0-9]{6}", "SOURCE_FILE=[^:]+", "GREEDYMULTILINE=(.|\\n)*"]))
+
+          - set(attributes["data_stream.dataset"], "nginx_ingress_controller.error")
+
+          # LogRecord event: https://github.com/open-telemetry/semantic-conventions/pull/982
+          - set(attributes["event.name"], "nginx_ingress_controller.error")
+
+  transform/parse_nginx_ingress_access/log:
     error_mode: ignore
     log_statements:
       - context: log
@@ -75,31 +94,44 @@ var IngressNginxProcessors = []ProcessorInstance{
           # TODO: We would like to get the Last upstream.response.status_code_list value instead of providing a slice with all the values
           - set(body["upstream.response.status_code"], Split(body["upstream.response.status_code_list"], ","))
           - delete_key(body, "upstream.response.status_code_list")
-`,
-	},
-	{
-		processorType: component.MustNewIDWithName("transform", "parse_nginx_ingress_error/log"),
-		config: `
-    error_mode: ignore
-    log_statements:
-      - context: log
-        conditions:
-            # ^[EWF]: Matches logs starting with E (Error), W (Warning), or F (Fatal).
-            # \d{4}: Matches the four digits after the log level (representing the date, like 1215 for December 15).
-            # .+: Matches the rest of the log line (the message part, without needing specific timestamp or file format).
-          - IsMatch(body, "^[EWF]\\d{4} .+")
-        statements:
-          - set(body, ExtractGrokPatterns(body, "%{LOG_LEVEL:log.level}%{MONTHNUM}%{MONTHDAY} %{HOUR}:%{MINUTE}:%{SECOND}\\.%{MICROS}%{SPACE}%{NUMBER:thread_id} %{SOURCE_FILE:source.file.name}:%{NUMBER:source.line_number}\\] %{GREEDYMULTILINE:message}", true, ["LOG_LEVEL=[A-Z]", "MONTHNUM=(0[1-9]|1[0-2])", "MONTHDAY=(0[1-9]|[12][0-9]|3[01])", "HOUR=([01][0-9]|2[0-3])", "MINUTE=[0-5][0-9]", "SECOND=[0-5][0-9]", "MICROS=[0-9]{6}", "SOURCE_FILE=[^:]+", "GREEDYMULTILINE=(.|\\n)*"]))
 
-          - set(attributes["data_stream.dataset"], "nginx_ingress_controller.error")
+  # TODO: add other detectors
+  # resourcedetection/system:
+  #   detectors: ["system"]
+  #   system:
+  #     hostname_sources: [ "os" ]
+  #     resource_attributes:
+  #       host.name:
+  #         enabled: true
+  #       host.id:
+  #         enabled: false
+  #       host.arch:
+  #         enabled: true
 
-          # LogRecord event: https://github.com/open-telemetry/semantic-conventions/pull/982
-          - set(attributes["event.name"], "nginx_ingress_controller.error")
-`,
-	},
-}
+  # geoip:
+  #   context: record
+  #   providers:
+  #     maxmind:
+  #       database_path: /tmp/GeoLite2-City.mmdb
 
-var IngressNginxPipeline = ProcessorsPipeline{
-	signal:  pipeline.SignalLogs,
-	configs: IngressNginxProcessors,
-}
+exporters:
+  elasticsearch:
+    endpoints:
+    - YOUR_ELASTICSEARCH_ENDPOINT
+    api_key: YOUR_ELASTICSEARCH_API_KEY
+    logs_dynamic_index:
+      enabled: true
+    mapping:
+      mode: otel
+  debug:
+    verbosity: detailed
+
+service:
+  extensions: [file_storage]
+  pipelines:
+    logs:
+      receivers: [filelog]
+      processors: [transform/parse_nginx_ingress_access/log, transform/parse_nginx_ingress_error/log]
+      # Uncomment the following line if geoip is configured
+      # processors: [transform/parse_nginx_ingress_access/log, transform/parse_nginx_ingress_error/log, geoip, resourcedetection/system]
+      exporters: [debug, elasticsearch]
