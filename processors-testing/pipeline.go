@@ -63,7 +63,7 @@ func assertLogsPipeline(config *confmap.Conf, pipeID pipeline.ID, inputData stri
 			}
 
 		default:
-			fmt.Errorf("signal type %q not supported in Logs test case", IngressNginxPipeline.signal)
+			fmt.Errorf("signal type %q not supported in Logs test case", pipeID)
 
 		}
 	}
