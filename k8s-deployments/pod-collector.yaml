@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: rcolles/elastic-agent-otel:telemetrygen
+        args:
+          - "--config=/etc/otel-collector-config.yaml"
+        ports:
+          - containerPort: 4317  # OTLP gRPC
+          - containerPort: 4318  # OTLP HTTP
+          - containerPort: 8888  # OTLP HTTP
+        resources:
+          requests:
+            cpu: "50m"      # Minimal CPU request
+            memory: "64Mi"  # Minimal memory request
+          limits:
+            cpu: "100m"     # Minimal CPU limit
+            memory: "128Mi" # Minimal memory limit
+        volumeMounts:
+          - name: config
+            mountPath: /etc/otel-collector-config.yaml
+            subPath: otel-collector-config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+data:
+  otel-collector-config.yaml: |
+
+    receivers:
+      telemetrygen:
+        metrics:
+          throughput: 1024 # 1Kb
+        logs:
+          throughput: 500000 # 1MB (1024*1024)
+        traces:
+          throughput: 8096 # 8Kb
+          services:
+            randomized_name_count: 200
+
+    processors:
+      batch:
+
+    exporters:
+      otlp/gateway:
+        endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4317
+        tls:
+          insecure: true
+        compression: none
+      otlp/lb:
+        endpoint: http://opentelemetry-kube-stack-lb-daemon-collector.opentelemetry-operator-system-lb.svc.cluster.local:4317
+        tls:
+          insecure: true
+        compression: none
+      otlp/lsm:
+        endpoint: http://opentelemetry-kube-stack-lsm-daemon-collector.opentelemetry-operator-system-lsm.svc.cluster.local:4317
+        tls:
+          insecure: true
+        compression: none
+    service:
+      pipelines:
+        # metrics:
+        #   receivers: [telemetrygen]
+        #   processors:
+        #     - batch
+        #   exporters:
+        #     - otlp/lb
+        #     - otlp/gateway
+        # logs:
+        #   receivers: [telemetrygen]
+        #   processors:
+        #     - batch
+        #   exporters:
+        #     - otlp/lb
+        #     - otlp/gateway
+        traces:
+          receivers: [telemetrygen]
+          processors:
+            - batch
+          exporters:
+            - otlp/lb
+            - otlp/gateway
+            - otlp/lsm
