@@ -1,0 +1,95 @@
+repositories:
+ - name: open-telemetry
+   url: https://open-telemetry.github.io/opentelemetry-helm-charts
+
+releases:
+  - name: opentelemetry-kube-stack
+    namespace: opentelemetry-operator-system
+    chart: open-telemetry/opentelemetry-kube-stack
+    version: 0.3.9
+    values:
+      - https://raw.githubusercontent.com/elastic/elastic-agent/refs/heads/8.x/deploy/helm/edot-collector/kube-stack/values.yaml
+      - defaultCRConfig:
+          image:
+            tag: "8.18.0-SNAPSHOT"
+      - collectors:
+          daemon:
+            env:
+              - name: ELASTIC_ENDPOINT
+                value: {{ requiredEnv "ELASTIC_ENDPOINT" }}
+              - name: ELASTIC_API_KEY
+                value: {{ requiredEnv "ELASTIC_API_KEY" }}
+          cluster:
+            env:
+              - name: ELASTIC_ENDPOINT
+                value: {{ requiredEnv "ELASTIC_ENDPOINT" }}
+              - name: ELASTIC_API_KEY
+                value: {{ requiredEnv "ELASTIC_API_KEY" }}
+
+  - name: opentelemetry-kube-stack-gateway
+    namespace: opentelemetry-operator-system-gateway
+    chart: open-telemetry/opentelemetry-kube-stack
+    version: 0.3.9
+    values:
+      - https://raw.githubusercontent.com/elastic/elastic-agent/refs/heads/8.16.2/deploy/helm/edot-collector/kube-stack/values.yaml
+      - defaultCRConfig:
+          image:
+            tag: "8.18.0-SNAPSHOT"
+      - collectors:
+          daemon:
+            hostNetwork: false
+            presets:
+              logsCollection:
+                storeCheckpoints: false
+          gateway:
+            env:
+              - name: ELASTIC_ENDPOINT
+                value: {{ requiredEnv "ELASTIC_ENDPOINT" }}
+              - name: ELASTIC_API_KEY
+                value: {{ requiredEnv "ELASTIC_API_KEY" }}
+      - instrumentation:
+          exporter:
+            endpoint: http://opentelemetry-kube-stack-gateway-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
+
+  - name: opentelemetry-collector-loadgen
+    namespace: opentelemetry-loadgen
+    chart: open-telemetry/opentelemetry-collector
+    version: 0.111.1
+    values:
+      - image:
+          repository: rcolles/elastic-agent-otel
+          tag: telemetrygen
+      - mode: deployment
+      - alternateConfig:
+          extensions:
+            health_check:
+              endpoint: ${env:MY_POD_IP}:13133
+          receivers:
+            telemetrygen:
+              traces:
+                throughput: 8096 # 8Kb
+                services:
+                  randomized_name_count: 200
+          processors:
+            batch:
+          exporters:
+            otlp/default:
+              endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4317
+              tls:
+                insecure: true
+              compression: none
+            otlp/gateway:
+              endpoint: http://opentelemetry-kube-stack-gateway-daemon-collector.opentelemetry-operator-system-gateway.svc.cluster.local:4317
+              tls:
+                insecure: true
+              compression: none
+          service:
+            extensions: [health_check]
+            pipelines:
+              traces:
+                receivers: [telemetrygen]
+                processors:
+                  - batch
+                exporters:
+                  - otlp/default
+                  - otlp/gateway
