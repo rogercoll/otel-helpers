@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: go-test-app
+  namespace: default
+  annotations:
+    instrumentation.opentelemetry.io/inject-go: "opentelemetry-operator-system/elastic-instrumentation"
+    instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opamp_client"
+  labels:
+    app: go-test-app
+
+spec:
+  containers:
+    - image: rcolles/opamp_client
+      imagePullPolicy: Always
+      name: go-test-app
+      args:
+        - "--opamp_endpoint=http://opentelemetry-kube-stack-gateway-collector-headless.opentelemetry-operator-system.svc.cluster.local:4320/v1/opamp"
